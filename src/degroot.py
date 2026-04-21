@@ -10,9 +10,7 @@ class DegrootResult:
         self.consensus_steps_count = 0
 
     def print_trajectory(self, precision: int = 6):
-        """
-        Print the opinion trajectory
-        """
+        """Print the opinion trajectory"""
         print("DeGroot opinion trajectory:")
 
         for t, opinions in enumerate(self.trajectory):
@@ -22,9 +20,7 @@ class DegrootResult:
         print()
 
     def print_results(self):
-        """
-        Print the simulation results
-        """
+        """Print the simulation results"""
         print("DeGroot simulation results:")
         print(f"- Total steps: {self.total_steps}")
 
@@ -45,11 +41,9 @@ class DegrootResult:
 def validate_weights(weights: np.ndarray) -> None:
     """
     Validate the DeGroot weight matrix
-
-    Parameters:
+    Args:
         weights: np.ndarray
             Row-stochastic influence matrix of shape (n, n)
-
     Raises:
         ValueError
             If the matrix is empty, not square, not row-stochastic or has negative values
@@ -75,14 +69,12 @@ def validate_weights(weights: np.ndarray) -> None:
 def validate_opinions(weights: np.ndarray, opinions: np.ndarray) -> None:
     """
     Validate the initial opinion vector
-
-    Parameters:
+    Args:
         weights: np.ndarray
             Weight matrix of shape (n, n)
         opinions: np.ndarray
             Opinion vector of shape (n,)
-
-    Raises
+    Raises:
         ValueError
             If the opinion vector is not one-dimensional or has incompatible size with the weight matrix
     """
@@ -96,17 +88,14 @@ def validate_opinions(weights: np.ndarray, opinions: np.ndarray) -> None:
 def degroot_step(weights: np.ndarray, opinions: np.ndarray) -> np.ndarray:
     """
     Perform one DeGroot update step
-
     The update rule is:
         x(t + 1) = W @ x(t)
-
-    Parameters
+    Args:
         weights: np.ndarray
-            Weight matrix of shape (n, n).
+            Weight matrix of shape (n, n)
         opinions: np.ndarray
             Current opinion vector of shape (n,)
-
-    Returns
+    Returns:
         np.ndarray
             Updated opinion vector of shape (n,)
     """
@@ -117,14 +106,12 @@ def has_consensus(opinions: np.ndarray, eps: float = 1e-6) -> bool:
     """
     Check if the system has reached consensus. A state is treated as consensus if
     the difference between the maximum and minimum opinion is at most eps
-
-    Parameters
+    Args:
         opinions: np.ndarray
             Current opinion vector
         eps: float, default=1e-6
             Consensus tolerance
-
-    Returns
+    Returns:
         bool
             True if consensus is reached, otherwise False
     """
@@ -134,8 +121,7 @@ def has_consensus(opinions: np.ndarray, eps: float = 1e-6) -> bool:
 def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, eps: float = 1e-6) -> DegrootResult:
     """
     Simulate the DeGroot opinion dynamics model
-
-    Parameters
+    Args:
         weights: np.ndarray
             Row-stochastic weight matrix of shape (n, n)
         opinions: np.ndarray
@@ -144,8 +130,7 @@ def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, 
             Maximum number of update steps
         eps: float, default=1e-6
             Consensus tolerance
-
-    Returns
+    Returns:
         DegrootResult
             Full opinion trajectory of shape (steps + 1, n),
             where the first row is the initial state.
