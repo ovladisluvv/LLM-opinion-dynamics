@@ -2,9 +2,10 @@ import numpy as np
 
 
 class DegrootResult:
+    """Class to store the results of the DeGroot simulation"""
     def __init__(self):
         self.trajectory = []
-        self.final_opinions = []
+        self.final_opinions = np.array([])
         self.consensus_reached = False
         self.total_steps = 0
         self.consensus_steps_count = 0
