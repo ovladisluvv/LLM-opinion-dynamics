@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from agents.agent_state import NeighborState
+
 
 class Logger:
     FIELDNAMES = [
@@ -16,7 +18,7 @@ class Logger:
         "thesis",
         "stance_description",
         "current_opinion_text",
-        "neighbors_opinions",
+        "neighbors",
         "prompt",
         "response",
         "judge_raw_response",
@@ -39,7 +41,7 @@ class Logger:
 
     def write_row(self, row: dict[str, Any]) -> None:
         row = self.prepare_row(row)
-        row["experiment_id"] = self.experiment_id   
+        row["experiment_id"] = self.experiment_id
         file_exists = self.path.exists()
 
         with open(self.path, "a", encoding="utf-8", newline="") as file:
@@ -72,7 +74,7 @@ class Logger:
         thesis: str,
         stance_description: str,
         current_opinion_text: str,
-        neighbors_opinions: list[str],
+        neighbors: list[NeighborState],
         prompt: str,
         response: str,
     ) -> None:
@@ -86,7 +88,7 @@ class Logger:
             "thesis": thesis,
             "stance_description": stance_description,
             "current_opinion_text": current_opinion_text,
-            "neighbors_opinions": neighbors_opinions,
+            "neighbors": neighbors,
             "prompt": prompt,
             "response": response,
             "judge_raw_response": "",
@@ -115,7 +117,7 @@ class Logger:
             "thesis": thesis,
             "stance_description": "",
             "current_opinion_text": participant_text,
-            "neighbors_opinions": "",
+            "neighbors": "",
             "prompt": prompt,
             "response": "",
             "judge_raw_response": raw_response,

@@ -13,7 +13,7 @@ prompts:
     Your current opinion:
     {current_opinion_text}
 
-    Opinions of your neighbors:
+    Opinions of your neighbors with their influence weights:
     {neighbors_block}
 
     Instructions:
@@ -35,7 +35,7 @@ prompts:
     {thesis}
 
     Participant's opinion:
-    {participant_text}
+    {participant_opinion}
 
     Scoring scale:
     0.0 = completely disagrees with the thesis
