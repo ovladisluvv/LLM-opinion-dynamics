@@ -24,9 +24,9 @@ class PromptBuilder():
 
         return "\n".join(
             f"Agent {neighbor.agent_id}\n"
-            f"Influence weight of that agent to you: {neighbor.weight:.4f}\n"
+            f"Your trust rating of that agent: {neighbor.weight:.4f}\n"
             f"Opinion: {neighbor.current_opinion_text}\n"
-            for _, neighbor in enumerate(neighbors)
+            for neighbor in neighbors
         )
 
     def build_participant_prompt(
@@ -34,7 +34,7 @@ class PromptBuilder():
         thesis: str,
         current_opinion_text: str,
         neighbors: list[NeighborState],
-        stance_description: str
+        self_trust: float
     ) -> str:
         """Builds the participant prompt by filling in the template with the provided information"""
         neighbors_block = self.build_neighbors_block(neighbors)
@@ -44,7 +44,7 @@ class PromptBuilder():
             thesis=thesis,
             current_opinion_text=current_opinion_text,
             neighbors_block=neighbors_block,
-            stance_description=stance_description
+            self_trust=f"{self_trust:.4f}"
         ).strip()
 
     def build_judge_prompt(self, thesis: str, participant_opinion: str) -> str:
