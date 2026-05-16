@@ -40,22 +40,22 @@ class ParticipantAgent(BaseAgent):
         thesis: str,
         current_opinion_text: str,
         neighbors: list[NeighborState],
-        stance_description: str
+        self_trust: float
     ) -> ParticipantResult:
         """Constructs the prompt and gets the updated opinion in text format"""
         prompt = self.prompt_builder.build_participant_prompt(
             thesis=thesis,
             current_opinion_text=current_opinion_text,
             neighbors=neighbors,
-            stance_description=stance_description,
+            self_trust=self_trust,
         )
 
-        res = ParticipantResult(
+        result = ParticipantResult(
             prompt=prompt,
             response=self.generate_response(prompt)
         )
 
-        return res
+        return result
 
 
 class JudgeAgent(BaseAgent):
@@ -67,33 +67,36 @@ class JudgeAgent(BaseAgent):
     ):
         super().__init__(model_name, temperature=0.0, prompt_builder=prompt_builder)
 
-    def extract_opinion_score(self, thesis: str, participant_text: str) -> JudgeResult:
+    def extract_opinion_score(self, thesis: str, participant_opinion_text: str) -> JudgeResult:
         """Evaluates the participant's text and returns a float score"""
         prompt = self.prompt_builder.build_judge_prompt(
             thesis=thesis,
-            participant_opinion=participant_text
+            participant_opinion=participant_opinion_text
         )
 
         raw_response = self.generate_response(prompt)
 
-        res = JudgeResult(
+        result = JudgeResult(
             prompt=prompt,
             raw_response=raw_response,
             opinion_score=self.parse_response(raw_response)
         )
 
-        return res
+        return result
 
-    def parse_response(self, response: str) -> float:
-        """Helper method to extract a float number from the LLM's raw text response"""
-        response = response.strip()
+    def parse_response(self, raw_response: str, eps: float = 1e-7) -> float:
+        """Parse a LLM-judge raw text response to a float and validate it's in the range [0.0, 1.0]"""
+        raw_response = raw_response.strip()
 
-        if not response:
+        if not raw_response:
             raise ValueError("Judge returned an empty response")
 
-        if not re.fullmatch(r"0(\.\d+)?|1(\.0+)?", response):
-            raise ValueError(f"Judge failed to return a valid score. Raw response: {response}")
+        if not re.fullmatch(r"0(\.\d+)?|1(\.0+)?", raw_response):
+            raise ValueError(f"Judge failed to return a valid score. Raw response: {raw_response}")
 
-        score = max(0.0, min(1.0, float(response)))
+        score = float(raw_response)
 
+        if score < -eps or score - 1.0 > eps:
+            raise ValueError(f"Judge returned a score out of bounds [0.0, 1.0]. Raw response: {raw_response}")
+        
         return score

@@ -19,14 +19,14 @@ class AgentState:
         current_opinion_text: str,
         initial_opinion_score: float | None = None,
         current_opinion_score: float | None = None,
-        stance_description: str = ""
+        self_trust: float = 1.0
     ):
         self.agent_id = agent_id
         self.initial_opinion_text = initial_opinion_text
         self.current_opinion_text = current_opinion_text
         self.initial_opinion_score = initial_opinion_score
         self.current_opinion_score = current_opinion_score
-        self.stance_description = stance_description
+        self.self_trust = self_trust
 
 
 class NeighborState:
