@@ -16,7 +16,7 @@ class Logger:
         "model_name",
         "temperature",
         "thesis",
-        "stance_description",
+        "self_trust",
         "current_opinion_text",
         "neighbors",
         "prompt",
@@ -27,11 +27,7 @@ class Logger:
 
     def __init__(self, path: str | Path | None = None, experiment_id: str | None = None):
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-        if experiment_id is None:
-            experiment_id = current_time
-
-        self.experiment_id = experiment_id
+        self.experiment_id = experiment_id or current_time
 
         if path is None:
             path = f"results/logs/experiment_{self.experiment_id}.csv"
@@ -41,7 +37,6 @@ class Logger:
 
     def write_row(self, row: dict[str, Any]) -> None:
         row = self.prepare_row(row)
-        row["experiment_id"] = self.experiment_id
         file_exists = self.path.exists()
 
         with open(self.path, "a", encoding="utf-8", newline="") as file:
@@ -53,17 +48,43 @@ class Logger:
             writer.writerow(row)
 
     def prepare_row(self, row: dict[str, Any]) -> dict[str, str]:
+        unknown_fields = set(row) - set(self.FIELDNAMES)
+        if unknown_fields:
+            raise ValueError(f"Unknown log fields: {sorted(unknown_fields)}")
+        
         ready_row = {}
 
         for key, value in row.items():
-            if isinstance(value, list):
-                ready_row[key] = "\n---\n".join(map(str, value))
-            elif value is None:
-                ready_row[key] = ""
-            else:
-                ready_row[key] = str(value)
+            ready_row[key] = self.format_value(value)
+
+        ready_row["experiment_id"] = self.experiment_id
 
         return ready_row
+    
+    def format_value(self, value: Any) -> str:
+        if value is None:
+            return ""
+
+        if isinstance(value, float):
+            return f"{value:.4f}"
+
+        if isinstance(value, list):
+            return "\n---\n".join(self.format_value(item) for item in value)
+
+        if isinstance(value, NeighborState):
+            return self.format_neighbor(value)
+
+        return str(value)
+    
+    def format_neighbor(self, neighbor: NeighborState) -> str:
+        score = "" if neighbor.current_opinion_score is None else f"{neighbor.current_opinion_score:.4f}"
+        
+        return (
+            f"agent_id={neighbor.agent_id}; "
+            f"trust_rating={neighbor.weight:.4f}; "
+            f"opinion_score={score}; "
+            f"opinion_text={neighbor.current_opinion_text}"
+        )
 
     def log_participant_response(
         self,
@@ -72,7 +93,7 @@ class Logger:
         model_name: str,
         temperature: float,
         thesis: str,
-        stance_description: str,
+        self_trust: float,
         current_opinion_text: str,
         neighbors: list[NeighborState],
         prompt: str,
@@ -86,7 +107,7 @@ class Logger:
             "model_name": model_name,
             "temperature": temperature,
             "thesis": thesis,
-            "stance_description": stance_description,
+            "self_trust": self_trust,
             "current_opinion_text": current_opinion_text,
             "neighbors": neighbors,
             "prompt": prompt,
@@ -102,6 +123,7 @@ class Logger:
         model_name: str,
         temperature: float,
         thesis: str,
+        self_trust: float,
         participant_text: str,
         prompt: str,
         raw_response: str,
@@ -115,7 +137,7 @@ class Logger:
             "model_name": model_name,
             "temperature": temperature,
             "thesis": thesis,
-            "stance_description": "",
+            "self_trust": self_trust,
             "current_opinion_text": participant_text,
             "neighbors": "",
             "prompt": prompt,
