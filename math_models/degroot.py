@@ -31,7 +31,8 @@ class DegrootResult:
             for i, opinion in enumerate(self.final_opinions):
                 print(f"    Agent {i}: {opinion:.6f}")
 
-        print(f"- Consensus {"is" if self.consensus_reached else "isn't"} reached")
+        consensus_verb = "is" if self.consensus_reached else "isn't"
+        print(f"- Consensus {consensus_verb} reached")
 
         if self.consensus_reached:
             print(f"- Steps to consensus: {self.consensus_steps_count}")
@@ -40,15 +41,7 @@ class DegrootResult:
 
 
 def validate_weights(weights: np.ndarray) -> None:
-    """
-    Validate the DeGroot weight matrix
-    Args:
-        weights: np.ndarray
-            Row-stochastic influence matrix of shape (n, n)
-    Raises:
-        ValueError
-            If the matrix is empty, not square, not row-stochastic or has negative values
-    """
+    """Validate the DeGroot weight matrix"""
     if weights.ndim != 2:
         raise ValueError("Weight matrix has to be two-dimensional")
 
@@ -68,17 +61,7 @@ def validate_weights(weights: np.ndarray) -> None:
 
 
 def validate_opinions(weights: np.ndarray, opinions: np.ndarray) -> None:
-    """
-    Validate the initial opinion vector
-    Args:
-        weights: np.ndarray
-            Weight matrix of shape (n, n)
-        opinions: np.ndarray
-            Opinion vector of shape (n,)
-    Raises:
-        ValueError
-            If the opinion vector is not one-dimensional or has incompatible size with the weight matrix
-    """
+    """Validate the initial opinion vector"""
     if opinions.ndim != 1:
         raise ValueError("Opinion vector has to be one-dimensional")
 
@@ -91,14 +74,6 @@ def degroot_step(weights: np.ndarray, opinions: np.ndarray) -> np.ndarray:
     Perform one DeGroot update step
     The update rule is:
         x(t + 1) = W @ x(t)
-    Args:
-        weights: np.ndarray
-            Weight matrix of shape (n, n)
-        opinions: np.ndarray
-            Current opinion vector of shape (n,)
-    Returns:
-        np.ndarray
-            Updated opinion vector of shape (n,)
     """
     return weights @ opinions
 
@@ -107,35 +82,12 @@ def has_consensus(opinions: np.ndarray, eps: float = 1e-6) -> bool:
     """
     Check if the system has reached consensus. A state is treated as consensus if
     the difference between the maximum and minimum opinion is at most eps
-    Args:
-        opinions: np.ndarray
-            Current opinion vector
-        eps: float, default=1e-6
-            Consensus tolerance
-    Returns:
-        bool
-            True if consensus is reached, otherwise False
     """
     return np.ptp(opinions) <= eps
 
 
 def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, eps: float = 1e-6) -> DegrootResult:
-    """
-    Simulate the DeGroot opinion dynamics model
-    Args:
-        weights: np.ndarray
-            Row-stochastic weight matrix of shape (n, n)
-        opinions: np.ndarray
-            Initial opinion vector of shape (n,)
-        max_steps: int
-            Maximum number of update steps
-        eps: float, default=1e-6
-            Consensus tolerance
-    Returns:
-        DegrootResult
-            Full opinion trajectory of shape (steps + 1, n),
-            where the first row is the initial state.
-    """
+    """Simulate the DeGroot opinion dynamics model"""
     if max_steps < 0:
         raise ValueError("Maximum number of steps has to be non-negative")
 
@@ -148,32 +100,32 @@ def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, 
     opinions = np.asarray(opinions, dtype=float)
     validate_opinions(weights, opinions)
 
-    res = DegrootResult()
+    result = DegrootResult()
     cur_opinion = opinions.copy()
-    res.trajectory.append(cur_opinion.copy())
+    result.trajectory.append(cur_opinion.copy())
 
     if has_consensus(cur_opinion, eps):
-        res.final_opinions = cur_opinion.copy()
-        res.consensus_reached = True
+        result.final_opinions = cur_opinion.copy()
+        result.consensus_reached = True
 
-        return res
+        return result
 
     for step in range(1, max_steps + 1):
         cur_opinion = degroot_step(weights, cur_opinion)
-        res.trajectory.append(cur_opinion.copy())
-        res.total_steps += 1
+        result.trajectory.append(cur_opinion.copy())
+        result.total_steps += 1
 
         if has_consensus(cur_opinion, eps):
-            res.final_opinions = cur_opinion.copy()
-            res.consensus_reached = True
-            res.consensus_steps_count = step
+            result.final_opinions = cur_opinion.copy()
+            result.consensus_reached = True
+            result.consensus_steps_count = step
 
-            return res
+            return result
 
-    res.final_opinions = cur_opinion.copy()
-    res.consensus_reached = False
+    result.final_opinions = cur_opinion.copy()
+    result.consensus_reached = False
 
-    return res
+    return result
 
 
 if __name__ == "__main__":
