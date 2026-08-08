@@ -10,6 +10,7 @@ class Logger:
     FIELDNAMES = [
         "timestamp",
         "experiment_id",
+        "run_id",
         "event_type",
         "step",
         "agent_id",
@@ -22,12 +23,14 @@ class Logger:
         "prompt",
         "response",
         "judge_raw_response",
-        "judge_score"
+        "judge_score",
+        "latency"
     ]
 
-    def __init__(self, path: str | Path | None = None, experiment_id: str | None = None):
+    def __init__(self, path: str | Path | None = None, experiment_id: str | None = None, run_id: str | None = None):
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.experiment_id = experiment_id or current_time
+        self.run_id = run_id
 
         if path is None:
             path = f"results/logs/experiment_{self.experiment_id}.csv"
@@ -58,6 +61,7 @@ class Logger:
             ready_row[key] = self.format_value(value)
 
         ready_row["experiment_id"] = self.experiment_id
+        ready_row["run_id"] = "" if self.run_id is None else self.run_id
 
         return ready_row
     
@@ -98,6 +102,7 @@ class Logger:
         neighbors: list[NeighborState],
         prompt: str,
         response: str,
+        latency: float | None = None,
     ) -> None:
         self.write_row({
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -114,6 +119,7 @@ class Logger:
             "response": response,
             "judge_raw_response": "",
             "judge_score": "",
+            "latency": latency,
         })
 
     def log_judge_response(
@@ -128,6 +134,7 @@ class Logger:
         prompt: str,
         raw_response: str,
         score: float,
+        latency: float | None = None,
     ) -> None:
         self.write_row({
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -144,4 +151,5 @@ class Logger:
             "response": "",
             "judge_raw_response": raw_response,
             "judge_score": score,
+            "latency": latency,
         })
