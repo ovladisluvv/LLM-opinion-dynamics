@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 from agents.agent_state import AgentState, NeighborState
 from math_models.degroot import validate_weights
@@ -15,10 +16,7 @@ def validate_network(agents: list[AgentState], weights: np.ndarray) -> np.ndarra
     validate_weights(weights)
 
     if len(agents) != weights.shape[0]:
-        raise ValueError(
-            f"The number of agents has to match the dimensions of the weights matrix. "
-            f"Got {len(agents)} agents and weight matrix of shape {weights.shape}"
-        )
+        raise ValueError(f"The number of agents has to match the dimensions of the weights matrix. Got {len(agents)} agents and weight matrix of shape {weights.shape}")
 
     return weights
 
@@ -29,6 +27,10 @@ class AgentNetwork:
         self.weights = validate_network(agents, weights)
         self.agent_positions = {agent.agent_id: index for index, agent in enumerate(agents)}
         self.sync_self_trust()
+
+    def deepcopy(self) -> "AgentNetwork":
+        """Return a deep copy of the network so a simulation run cannot mutate the original states"""
+        return copy.deepcopy(self)
 
     def get_agent_index(self, agent_id: int) -> int:
         if agent_id not in self.agent_positions:
