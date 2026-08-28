@@ -1,26 +1,30 @@
 import re
-from abc import ABC, abstractmethod
 
 from prompts.prompt_builder import PromptBuilder
 from agents.agent_state import ParticipantResult, JudgeResult, NeighborState
+from agents.llm_client import LLMClient
 
 
-class BaseAgent(ABC):
-    """Abstract base class for LLM agents used in the simulation"""
+class BaseAgent:
+    """Base class for LLM agents used in the simulation. Delegates API calls to an injected LLM client"""
     def __init__(
         self,
         model_name: str,
         temperature: float = 0.2,
-        prompt_builder: PromptBuilder | None = None
+        prompt_builder: PromptBuilder | None = None,
+        client: LLMClient | None = None
     ):
         self.model_name = model_name
         self.temperature = temperature
         self.prompt_builder = prompt_builder or PromptBuilder()
+        self.client = client
 
-    @abstractmethod
     def generate_response(self, prompt: str) -> str:
-        """Abstract method to call the LLM API or local model to generate a response based on the prompt"""
-        pass
+        """Call the LLM API through the injected client to generate a response based on the prompt"""
+        if self.client is None:
+            raise ValueError(f"Agent for model {self.model_name} has no LLM client. Pass a client to the agent constructor")
+
+        return self.client.generate(prompt, temperature=self.temperature)
 
 
 class ParticipantAgent(BaseAgent):
@@ -30,9 +34,10 @@ class ParticipantAgent(BaseAgent):
         agent_id: int,
         model_name: str,
         temperature: float = 0.2,
-        prompt_builder: PromptBuilder | None = None
+        prompt_builder: PromptBuilder | None = None,
+        client: LLMClient | None = None
     ):
-        super().__init__(model_name, temperature, prompt_builder)
+        super().__init__(model_name, temperature, prompt_builder, client)
         self.agent_id = agent_id
 
     def process_neighbors_opinions(
@@ -63,9 +68,11 @@ class JudgeAgent(BaseAgent):
     def __init__(
         self,
         model_name: str,
-        prompt_builder: PromptBuilder | None = None
+        temperature: float = 0.0,
+        prompt_builder: PromptBuilder | None = None,
+        client: LLMClient | None = None
     ):
-        super().__init__(model_name, temperature=0.0, prompt_builder=prompt_builder)
+        super().__init__(model_name, temperature=temperature, prompt_builder=prompt_builder, client=client)
 
     def extract_opinion_score(self, thesis: str, participant_opinion_text: str) -> JudgeResult:
         """Evaluates the participant's text and returns a float score"""
