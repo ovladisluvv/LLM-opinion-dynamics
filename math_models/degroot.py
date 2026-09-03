@@ -1,131 +1,33 @@
 import numpy as np
 
+from math_models.common import MathModel, TrajectoryResult, has_consensus, validate_opinions, validate_weights
 
-class DegrootResult:
-    """Class to store the results of the DeGroot simulation"""
-    def __init__(self):
-        self.trajectory = []
-        self.final_opinions = np.array([])
-        self.consensus_reached = False
-        self.total_steps = 0
-        self.consensus_steps_count = 0
-
-    def print_trajectory(self, precision: int = 6):
-        """Print the opinion trajectory"""
-        print("DeGroot opinion trajectory:")
-
-        for t, opinions in enumerate(self.trajectory):
-            formatted_opinions = ", ".join(f"{opinion:.{precision}f}" for opinion in opinions)
-            print(f"Step {t:>{len(str(self.total_steps))}}: {formatted_opinions}")
-
-        print()
-
-    def print_results(self):
-        """Print the simulation results"""
-        print("DeGroot simulation results:")
-        print(f"- Total steps: {self.total_steps}")
-
-        if self.trajectory:
-            print(f"- Final opinions:")
-
-            for i, opinion in enumerate(self.final_opinions):
-                print(f"    Agent {i}: {opinion:.6f}")
-
-        consensus_verb = "is" if self.consensus_reached else "isn't"
-        print(f"- Consensus {consensus_verb} reached")
-
-        if self.consensus_reached:
-            print(f"- Steps to consensus: {self.consensus_steps_count}")
-
-        print()
+__all__ = ["DegrootModel", "degroot_step", "simulate_degroot", "has_consensus", "validate_weights", "validate_opinions"]
 
 
-def validate_weights(weights: np.ndarray) -> None:
-    """Validate the DeGroot weight matrix"""
-    if weights.ndim != 2:
-        raise ValueError("Weight matrix has to be two-dimensional")
+class DegrootModel(MathModel):
+    """
+    DeGroot model. The update rule is:
+        x(t + 1) = W @ x(t)
+    The run stops when the opinions reach consensus (spread at most eps)
+    """
+    name = "degroot"
 
-    rows, cols = weights.shape
-    if rows == 0 or cols == 0:
-        raise ValueError("Weight matrix has to be not empty")
+    def step(self, opinions: np.ndarray, initial_opinions: np.ndarray) -> np.ndarray:
+        return self.weights @ opinions
 
-    if rows != cols:
-        raise ValueError("Weight matrix has to be square")
-
-    if np.any(weights < 0):
-        raise ValueError("Weight matrix has to be non-negative")
-
-    row_sums = weights.sum(axis=1)
-    if not np.allclose(row_sums, 1.0):
-        raise ValueError(f"Each row has to sum to 1. Current row sums: {row_sums}")
-
-
-def validate_opinions(weights: np.ndarray, opinions: np.ndarray) -> None:
-    """Validate the initial opinion vector"""
-    if opinions.ndim != 1:
-        raise ValueError("Opinion vector has to be one-dimensional")
-
-    if weights.shape[0] != opinions.shape[0]:
-        raise ValueError("The size of the opinion vector has to match the weight matrix size")
+    def check_stop(self, previous: np.ndarray | None, current: np.ndarray, eps: float) -> bool:
+        return has_consensus(current, eps)
 
 
 def degroot_step(weights: np.ndarray, opinions: np.ndarray) -> np.ndarray:
-    """
-    Perform one DeGroot update step
-    The update rule is:
-        x(t + 1) = W @ x(t)
-    """
+    """Perform one DeGroot update step x(t + 1) = W @ x(t)"""
     return weights @ opinions
 
 
-def has_consensus(opinions: np.ndarray, eps: float = 1e-6) -> bool:
-    """
-    Check if the system has reached consensus. A state is treated as consensus if
-    the difference between the maximum and minimum opinion is at most eps
-    """
-    return np.ptp(opinions) <= eps
-
-
-def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, eps: float = 1e-6) -> DegrootResult:
+def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, eps: float = 1e-6) -> TrajectoryResult:
     """Simulate the DeGroot opinion dynamics model"""
-    if max_steps < 0:
-        raise ValueError("Maximum number of steps has to be non-negative")
-
-    if eps < 0:
-        raise ValueError("Epsilon has to be non-negative")
-
-    weights = np.asarray(weights, dtype=float)
-    validate_weights(weights)
-
-    opinions = np.asarray(opinions, dtype=float)
-    validate_opinions(weights, opinions)
-
-    result = DegrootResult()
-    cur_opinion = opinions.copy()
-    result.trajectory.append(cur_opinion.copy())
-
-    if has_consensus(cur_opinion, eps):
-        result.final_opinions = cur_opinion.copy()
-        result.consensus_reached = True
-
-        return result
-
-    for step in range(1, max_steps + 1):
-        cur_opinion = degroot_step(weights, cur_opinion)
-        result.trajectory.append(cur_opinion.copy())
-        result.total_steps += 1
-
-        if has_consensus(cur_opinion, eps):
-            result.final_opinions = cur_opinion.copy()
-            result.consensus_reached = True
-            result.consensus_steps_count = step
-
-            return result
-
-    result.final_opinions = cur_opinion.copy()
-    result.consensus_reached = False
-
-    return result
+    return DegrootModel(weights).simulate(opinions, max_steps, eps)
 
 
 if __name__ == "__main__":

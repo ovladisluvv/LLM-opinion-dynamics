@@ -1,72 +1,7 @@
 import numpy as np
 
-
-class FriedkinJohnsenResult:
-    """Class to store the results of the Friedkin-Johnsen simulation"""
-    def __init__(self):
-        self.trajectory = []
-        self.final_opinions = np.array([])
-        self.converged = False
-        self.total_steps = 0
-        self.convergence_steps_count = 0
-
-    def print_trajectory(self, precision: int = 6):
-        """Print the opinion trajectory"""
-        print("Friedkin-Johnsen opinion trajectory:")
-
-        for t, opinions in enumerate(self.trajectory):
-            formatted_opinions = ", ".join(f"{opinion:.{precision}f}" for opinion in opinions)
-            print(f"Step {t:>{len(str(self.total_steps))}}: {formatted_opinions}")
-
-        print()
-
-    def print_results(self):
-        """Print the simulation results"""
-        print("Friedkin-Johnsen simulation results:")
-        print(f"- Total steps: {self.total_steps}")
-
-        if self.trajectory:
-            print("- Final opinions:")
-
-            for i, opinion in enumerate(self.final_opinions):
-                print(f"    Agent {i}: {opinion:.6f}")
-
-        convergence_verb = "has" if self.converged else "hasn't"
-        print(f"- Model {convergence_verb} converged")
-
-        if self.converged:
-            print(f"- Steps to convergence: {self.convergence_steps_count}")
-
-        print()
-
-
-def validate_weights(weights: np.ndarray) -> None:
-    """Validate the Friedkin-Johnsen weight matrix"""
-    if weights.ndim != 2:
-        raise ValueError("Weight matrix has to be two-dimensional")
-
-    rows, cols = weights.shape
-    if rows == 0 or cols == 0:
-        raise ValueError("Weight matrix has to be not empty")
-
-    if rows != cols:
-        raise ValueError("Weight matrix has to be square")
-
-    if np.any(weights < 0):
-        raise ValueError("Weight matrix has to be non-negative")
-
-    row_sums = weights.sum(axis=1)
-    if not np.allclose(row_sums, 1.0):
-        raise ValueError(f"Each row has to sum to 1. Current row sums: {row_sums}")
-
-
-def validate_opinions(weights: np.ndarray, opinions: np.ndarray) -> None:
-    """Validate the initial opinion vector"""
-    if opinions.ndim != 1:
-        raise ValueError("Opinion vector has to be one-dimensional")
-
-    if weights.shape[0] != opinions.shape[0]:
-        raise ValueError("The size of the opinion vector has to match the weight matrix size")
+from agents.agent_state import AgentState
+from math_models.common import MathModel, TrajectoryResult, has_converged
 
 
 def validate_susceptibility(weights: np.ndarray, susceptibility: np.ndarray) -> None:
@@ -75,10 +10,53 @@ def validate_susceptibility(weights: np.ndarray, susceptibility: np.ndarray) -> 
         raise ValueError("Susceptibility vector has to be one-dimensional")
 
     if weights.shape[0] != susceptibility.shape[0]:
-        raise ValueError("The size of the susceptibility vector has to match the weight matrix size")
+        raise ValueError(
+            f"The size of the susceptibility vector has to match the weight matrix size. "
+            f"Got {susceptibility.shape[0]} values for {weights.shape[0]} agents"
+        )
 
     if np.any((susceptibility < 0) | (susceptibility > 1)):
         raise ValueError("Each susceptibility value has to be in the interval [0, 1]")
+
+
+class FriedkinJohnsenModel(MathModel):
+    """
+    Friedkin-Johnsen model. The update rule is:
+        x(t + 1) = Λ @ W @ x(t) + (I - Λ) @ x(0)
+    where Λ is a diagonal matrix of agents' susceptibility to social influence.
+    The run stops when the opinions become stationary (maximum change at most eps);
+    the stationary state is generally not a consensus
+    """
+    name = "friedkin_johnsen"
+
+    def __init__(self, weights: np.ndarray, susceptibility: list[float]):
+        super().__init__(weights)
+
+        susceptibility = np.asarray(susceptibility, dtype=float)
+        validate_susceptibility(self.weights, susceptibility)
+        self.susceptibility = susceptibility
+
+    def step(self, opinions: np.ndarray, initial_opinions: np.ndarray) -> np.ndarray:
+        social_influence = self.weights @ opinions
+        return self.susceptibility * social_influence + (1.0 - self.susceptibility) * initial_opinions
+
+    def check_stop(self, previous: np.ndarray | None, current: np.ndarray, eps: float) -> bool:
+        if previous is None:
+            return False
+
+        return has_converged(previous, current, eps)
+
+    def participant_prompt_fields(self, agent_index: int, agent: AgentState) -> dict[str, str]:
+        susceptibility = float(self.susceptibility[agent_index])
+
+        return {
+            "initial_opinion_text": agent.initial_opinion_text,
+            "susceptibility": f"{susceptibility:.4f}",
+            "anchor_weight": f"{1.0 - susceptibility:.4f}",
+        }
+
+    def params(self) -> dict:
+        return {"susceptibility": self.susceptibility.tolist()}
 
 
 def friedkin_johnsen_step(
@@ -87,23 +65,9 @@ def friedkin_johnsen_step(
     initial_opinions: np.ndarray,
     susceptibility: np.ndarray,
 ) -> np.ndarray:
-    """
-    Perform one Friedkin-Johnsen update step
-    The update rule is:
-        x(t + 1) = Λ @ W @ x(t) + (I - Λ) @ x(0)
-    where Λ is a diagonal matrix of agents' susceptibility to social influence
-    """
+    """Perform one Friedkin-Johnsen update step x(t + 1) = Λ @ W @ x(t) + (I - Λ) @ x(0)"""
     social_influence = weights @ opinions
     return susceptibility * social_influence + (1.0 - susceptibility) * initial_opinions
-
-
-def has_converged(previous_opinions: np.ndarray, opinions: np.ndarray, eps: float = 1e-6) -> bool:
-    """
-    Check if the system has converged to a stationary state. 
-    A state is treated as converged if the maximum absolute change in an
-    agent's opinion between two consecutive steps is at most eps
-    """
-    return np.max(np.abs(opinions - previous_opinions)) <= eps
 
 
 def simulate_friedkin_johnsen(
@@ -112,50 +76,9 @@ def simulate_friedkin_johnsen(
     susceptibility: np.ndarray,
     max_steps: int,
     eps: float = 1e-6,
-) -> FriedkinJohnsenResult:
+) -> TrajectoryResult:
     """Simulate the Friedkin-Johnsen opinion dynamics model"""
-    if max_steps < 0:
-        raise ValueError("Maximum number of steps has to be non-negative")
-
-    if eps < 0:
-        raise ValueError("Epsilon has to be non-negative")
-
-    weights = np.asarray(weights, dtype=float)
-    validate_weights(weights)
-
-    opinions = np.asarray(opinions, dtype=float)
-    validate_opinions(weights, opinions)
-
-    susceptibility = np.asarray(susceptibility, dtype=float)
-    validate_susceptibility(weights, susceptibility)
-
-    result = FriedkinJohnsenResult()
-    initial_opinions = opinions.copy()
-    cur_opinion = opinions.copy()
-    result.trajectory.append(cur_opinion.copy())
-
-    for step in range(1, max_steps + 1):
-        previous_opinion = cur_opinion.copy()
-        cur_opinion = friedkin_johnsen_step(
-            weights,
-            previous_opinion,
-            initial_opinions,
-            susceptibility,
-        )
-        result.trajectory.append(cur_opinion.copy())
-        result.total_steps += 1
-
-        if has_converged(previous_opinion, cur_opinion, eps):
-            result.final_opinions = cur_opinion.copy()
-            result.converged = True
-            result.convergence_steps_count = step
-
-            return result
-
-    result.final_opinions = cur_opinion.copy()
-    result.converged = False
-
-    return result
+    return FriedkinJohnsenModel(weights, susceptibility=susceptibility).simulate(opinions, max_steps, eps)
 
 
 if __name__ == "__main__":
