@@ -2,7 +2,7 @@ import re
 
 from prompts.prompt_builder import PromptBuilder
 from agents.agent_state import ParticipantResult, JudgeResult, NeighborState
-from agents.llm_client import LLMClient
+from agents.llm_client import GenerationParams, LLMClient
 
 
 class BaseAgent:
@@ -10,21 +10,25 @@ class BaseAgent:
     def __init__(
         self,
         model_name: str,
-        temperature: float = 0.2,
+        params: GenerationParams,
         prompt_builder: PromptBuilder | None = None,
         client: LLMClient | None = None
     ):
         self.model_name = model_name
-        self.temperature = temperature
+        self.params = params
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.client = client
+
+    @property
+    def temperature(self) -> float:
+        return self.params.temperature
 
     def generate_response(self, prompt: str) -> str:
         """Call the LLM API through the injected client to generate a response based on the prompt"""
         if self.client is None:
             raise ValueError(f"Agent for model {self.model_name} has no LLM client. Pass a client to the agent constructor")
 
-        return self.client.generate(prompt, temperature=self.temperature)
+        return self.client.generate(prompt, self.params)
 
 
 class ParticipantAgent(BaseAgent):
@@ -33,11 +37,11 @@ class ParticipantAgent(BaseAgent):
         self,
         agent_id: int,
         model_name: str,
-        temperature: float = 0.2,
+        params: GenerationParams | None = None,
         prompt_builder: PromptBuilder | None = None,
         client: LLMClient | None = None
     ):
-        super().__init__(model_name, temperature, prompt_builder, client)
+        super().__init__(model_name, params or GenerationParams(temperature=0.2), prompt_builder, client)
         self.agent_id = agent_id
 
     def process_neighbors_opinions(
@@ -45,7 +49,9 @@ class ParticipantAgent(BaseAgent):
         thesis: str,
         current_opinion_text: str,
         neighbors: list[NeighborState],
-        self_trust: float
+        self_trust: float,
+        model_name: str = "",
+        model_fields: dict[str, str] | None = None
     ) -> ParticipantResult:
         """Constructs the prompt and gets the updated opinion in text format"""
         prompt = self.prompt_builder.build_participant_prompt(
@@ -53,6 +59,8 @@ class ParticipantAgent(BaseAgent):
             current_opinion_text=current_opinion_text,
             neighbors=neighbors,
             self_trust=self_trust,
+            model_name=model_name,
+            model_fields=model_fields,
         )
 
         result = ParticipantResult(
@@ -68,11 +76,11 @@ class JudgeAgent(BaseAgent):
     def __init__(
         self,
         model_name: str,
-        temperature: float = 0.0,
+        params: GenerationParams | None = None,
         prompt_builder: PromptBuilder | None = None,
         client: LLMClient | None = None
     ):
-        super().__init__(model_name, temperature=temperature, prompt_builder=prompt_builder, client=client)
+        super().__init__(model_name, params or GenerationParams(temperature=0.0), prompt_builder, client)
 
     def extract_opinion_score(self, thesis: str, participant_opinion_text: str) -> JudgeResult:
         """Evaluates the participant's text and returns a float score"""
@@ -105,5 +113,5 @@ class JudgeAgent(BaseAgent):
 
         if score < -eps or score - 1.0 > eps:
             raise ValueError(f"Judge returned a score out of bounds [0.0, 1.0]. Raw response: {raw_response}")
-        
+
         return score
