@@ -13,6 +13,7 @@ prompts:
 
     Your current opinion:
     {current_opinion_text}
+    {model_block}
 
     Opinions of your neighbors with your trust ratings for them, from 0.0 to 1.0:
     {neighbors_block}
@@ -57,3 +58,13 @@ prompts:
     - Use a dot as the decimal separator.
     - Do not use percentages.
     - Output only one number and nothing else, no extra text.
+
+model_blocks:
+  friedkin_johnsen: |
+
+    Your initial opinion, which you formed before this discussion started:
+    {initial_opinion_text}
+
+    You keep being anchored to your initial opinion with weight {anchor_weight}, from 0.0 to 1.0.
+    The higher this weight is, the closer your updated opinion should stay to your initial opinion,
+    regardless of what your neighbors say.
