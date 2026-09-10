@@ -2,7 +2,7 @@ import numpy as np
 import copy
 
 from agents.agent_state import AgentState, NeighborState
-from math_models.degroot import validate_weights
+from math_models.common import validate_weights
 
 
 def validate_network(agents: list[AgentState], weights: np.ndarray) -> np.ndarray:
