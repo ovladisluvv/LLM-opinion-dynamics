@@ -1,13 +1,11 @@
 import re
-from pathlib import Path
 import yaml
-
-from agents.agent_state import NeighborState
+from pathlib import Path
 
 
 class PromptBuilder():
     """Utility class to build prompts for participant and judge agents based on a YAML configuration file"""
-    def __init__(self, config_path: str | Path = "prompts/config.yaml"):
+    def __init__(self, config_path: str | Path = "config/prompt_config.yaml"):
         self.config_path = Path(config_path)
 
         with self.config_path.open("r", encoding="utf-8") as file:
@@ -19,7 +17,7 @@ class PromptBuilder():
         self.prompts = self.config["prompts"]
         self.model_blocks: dict[str, str] = self.config.get("model_blocks") or {}
 
-    def build_neighbors_block(self, neighbors: list[NeighborState]) -> str:
+    def build_neighbors_block(self, neighbors: list) -> str:
         """Builds the block of neighbors' opinions for the participant prompt"""
         if not neighbors:
             return "No neighbor opinions are available"
@@ -50,7 +48,7 @@ class PromptBuilder():
         self,
         thesis: str,
         current_opinion_text: str,
-        neighbors: list[NeighborState],
+        neighbors: list,
         self_trust: float,
         model_name: str = "",
         model_fields: dict[str, str] | None = None

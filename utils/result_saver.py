@@ -3,11 +3,10 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-
 import numpy as np
 
-from experiments.simulation_state import SimulationResult
-from math_models.common import TrajectoryResult
+from math_models import TrajectoryResult
+from simulations import SimulationResult
 
 
 def prompt_config_hash(path: str | Path) -> str:

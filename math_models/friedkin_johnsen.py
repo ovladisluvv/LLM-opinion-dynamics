@@ -1,6 +1,5 @@
 import numpy as np
 
-from agents.agent_state import AgentState
 from math_models.common import MathModel, TrajectoryResult, has_converged
 
 
@@ -46,7 +45,7 @@ class FriedkinJohnsenModel(MathModel):
 
         return has_converged(previous, current, eps)
 
-    def participant_prompt_fields(self, agent_index: int, agent: AgentState) -> dict[str, str]:
+    def participant_prompt_fields(self, agent_index: int, agent) -> dict[str, str]:
         susceptibility = float(self.susceptibility[agent_index])
 
         return {

@@ -1,6 +1,6 @@
 import re
 
-from prompts.prompt_builder import PromptBuilder
+from prompts import PromptBuilder
 from agents.agent_state import ParticipantResult, JudgeResult, NeighborState
 from agents.llm_client import GenerationParams, LLMClient
 

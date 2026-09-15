@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from agents.agent_state import NeighborState
+from agents import NeighborState
 
 
 class Logger:

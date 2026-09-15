@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-import numpy as np
 
-from agents.agent_state import AgentState
+import numpy as np
 
 
 def validate_weights(weights: np.ndarray) -> None:
@@ -114,7 +113,7 @@ class MathModel(ABC):
     def check_stop(self, previous: np.ndarray | None, current: np.ndarray, eps: float) -> bool:
         """Stopping criterion. `previous` is None when checking the initial state"""
 
-    def participant_prompt_fields(self, agent_index: int, agent: AgentState) -> dict[str, str]:
+    def participant_prompt_fields(self, agent_index: int, agent) -> dict[str, str]:
         """Model-specific placeholders for the participant prompt block. Empty by default"""
         return {}
 

@@ -2,8 +2,6 @@ import numpy as np
 
 from math_models.common import MathModel, TrajectoryResult, has_consensus, validate_opinions, validate_weights
 
-__all__ = ["DegrootModel", "degroot_step", "simulate_degroot", "has_consensus", "validate_weights", "validate_opinions"]
-
 
 class DegrootModel(MathModel):
     """
