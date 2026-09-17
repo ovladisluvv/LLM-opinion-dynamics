@@ -1,4 +1,4 @@
-from agents.network import AgentNetwork
+from agents import AgentNetwork
 
 
 class SimulationResult:
