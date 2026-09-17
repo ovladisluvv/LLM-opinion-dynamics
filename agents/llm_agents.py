@@ -1,6 +1,6 @@
 import re
 
-from prompts import PromptBuilder
+from config import AgentPromptBuilder
 from agents.agent_state import ParticipantResult, JudgeResult, NeighborState
 from agents.llm_client import GenerationParams, LLMClient
 
@@ -11,12 +11,12 @@ class BaseAgent:
         self,
         model_name: str,
         params: GenerationParams,
-        prompt_builder: PromptBuilder | None = None,
+        agent_prompt_builder: AgentPromptBuilder | None = None,
         client: LLMClient | None = None
     ):
         self.model_name = model_name
         self.params = params
-        self.prompt_builder = prompt_builder or PromptBuilder()
+        self.agent_prompt_builder = agent_prompt_builder or AgentPromptBuilder()
         self.client = client
 
     @property
@@ -38,10 +38,10 @@ class ParticipantAgent(BaseAgent):
         agent_id: int,
         model_name: str,
         params: GenerationParams | None = None,
-        prompt_builder: PromptBuilder | None = None,
+        agent_prompt_builder: AgentPromptBuilder | None = None,
         client: LLMClient | None = None
     ):
-        super().__init__(model_name, params or GenerationParams(temperature=0.2), prompt_builder, client)
+        super().__init__(model_name, params or GenerationParams(temperature=0.2), agent_prompt_builder, client)
         self.agent_id = agent_id
 
     def process_neighbors_opinions(
@@ -54,7 +54,7 @@ class ParticipantAgent(BaseAgent):
         model_fields: dict[str, str] | None = None
     ) -> ParticipantResult:
         """Constructs the prompt and gets the updated opinion in text format"""
-        prompt = self.prompt_builder.build_participant_prompt(
+        prompt = self.agent_prompt_builder.build_participant_prompt(
             thesis=thesis,
             current_opinion_text=current_opinion_text,
             neighbors=neighbors,
@@ -77,14 +77,14 @@ class JudgeAgent(BaseAgent):
         self,
         model_name: str,
         params: GenerationParams | None = None,
-        prompt_builder: PromptBuilder | None = None,
+        agent_prompt_builder: AgentPromptBuilder | None = None,
         client: LLMClient | None = None
     ):
-        super().__init__(model_name, params or GenerationParams(temperature=0.0), prompt_builder, client)
+        super().__init__(model_name, params or GenerationParams(temperature=0.0), agent_prompt_builder, client)
 
     def extract_opinion_score(self, thesis: str, participant_opinion_text: str) -> JudgeResult:
         """Evaluates the participant's text and returns a float score"""
-        prompt = self.prompt_builder.build_judge_prompt(
+        prompt = self.agent_prompt_builder.build_judge_prompt(
             thesis=thesis,
             participant_opinion=participant_opinion_text
         )
