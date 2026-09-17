@@ -1,0 +1,66 @@
+# Example experiment configuration: LLM agents vs DeGroot model
+# API tokens and endpoint URLs are NOT set here: they are loaded from .env by provider
+# (OPENAI_LLM_TOKEN, OLLAMA_LLM_BASE_URL, ...; see .env.example)
+# OPENAI_LLM_TOKEN is required for the judge
+
+experiment_name: degroot_demo
+
+thesis: "Remote work is more productive than office work for software teams"
+
+llm:
+  participant:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.7
+    max_tokens: 400
+  judge:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.0
+    max_tokens: 10
+
+math_model:
+  name: degroot
+  params: {}
+  epsilon: 0.03
+
+# Simulation settings
+max_steps: 10
+convergence_epsilon: 0.03
+random_seed: 42
+num_runs: 1
+
+# API call settings
+request_timeout: 60.0
+max_retries: 2
+retry_delay: 2.0
+
+# Output directory: each run is saved to <results_dir>/<experiment_id>/run_<index>/
+results_dir: results
+
+# Participants. Initial_opinion_score and persona are optional. A missing score is evaluated by the judge model before step 0
+agents:
+  - agent_id: 0
+    initial_opinion_text: >-
+      Remote work lets me focus without office noise, and my team ships more
+      than ever. I am convinced remote work is clearly more productive
+    initial_opinion_score: 0.9
+    persona: "Senior developer, remote work enthusiast"
+
+  - agent_id: 1
+    initial_opinion_text: >-
+      Some tasks go fine remotely, but design discussions and onboarding suffer
+      without a shared room. I think the productivity picture is mixed
+    persona: "Team lead, undecided"
+
+  - agent_id: 2
+    initial_opinion_text: >-
+      Every remote project I have seen slipped its deadlines because
+      communication fell apart. Office work keeps teams productive, remote does not
+    initial_opinion_score: 0.1
+    persona: "Project manager, office work advocate"
+
+weights:
+  - [0.6, 0.3, 0.1]
+  - [0.25, 0.5, 0.25]
+  - [0.1, 0.3, 0.6]
