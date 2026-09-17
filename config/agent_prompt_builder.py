@@ -3,7 +3,7 @@ import yaml
 from pathlib import Path
 
 
-class PromptBuilder():
+class AgentPromptBuilder():
     """Utility class to build prompts for participant and judge agents based on a YAML configuration file"""
     def __init__(self, config_path: str | Path = "config/prompt_config.yaml"):
         self.config_path = Path(config_path)
