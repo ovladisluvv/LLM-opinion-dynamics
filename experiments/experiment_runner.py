@@ -1,4 +1,5 @@
 import argparse
+import os
 import random
 import traceback
 from datetime import datetime
@@ -35,6 +36,10 @@ from utils import (
     save_math_trajectory,
     save_run_status,
 )
+
+
+# Environment variable with the experiment YAML path, used when --config is not passed
+CONFIG_ENV_VAR = "EXPERIMENT_CONFIG"
 
 
 class ExperimentOutcome:
@@ -285,13 +290,19 @@ def run_experiment(config_path: str | Path, env_path: str | Path = ".env") -> Ex
 def main() -> None:
     """Parse command-line arguments and run the experiment"""
     parser = argparse.ArgumentParser(description="Run an LLM opinion dynamics experiment against a mathematical model")
-    parser.add_argument("--config", required=True, help="Path to the experiment YAML config")
-    parser.add_argument("--env", default=".env", help="Path to the .env file with provider tokens and endpoints")
+    parser.add_argument("--config", help=f"Path to the experiment YAML config, overrides {CONFIG_ENV_VAR} from .env")
+    parser.add_argument("--env", default=".env", help="Path to the .env file with provider tokens, endpoints and the config path")
 
     args = parser.parse_args()
 
+    load_env_file(args.env)
+    config_path = args.config or os.environ.get(CONFIG_ENV_VAR, "").strip()
+
+    if not config_path:
+        raise SystemExit(f"Error: no experiment config given. Pass --config or set {CONFIG_ENV_VAR} in {args.env}")
+
     try:
-        outcome = run_experiment(config_path=args.config, env_path=args.env)
+        outcome = run_experiment(config_path=config_path, env_path=args.env)
     except (ValueError, LLMClientError) as error:
         raise SystemExit(f"Error: {error}")
 
