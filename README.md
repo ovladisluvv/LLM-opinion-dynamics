@@ -1,125 +1,89 @@
 # LLM-opinion-dynamics
 ## Modeling opinion dynamics in social networks with LLM-based agents
 
-A research Python framework designed for studying opinion dynamics in social networks within a network of Large Language Model (LLM) agents. This project models how beliefs, biases, and consensus change over time through agent-to-agent interactions, utilizing graph topologies, classical mathematical models of opinion dynamics, and structured prompt engineering
+LLM-opinion-dynamics runs a discussion between LLM agents on a weighted social network, turns their
+textual opinions into numeric scores with a separate judge model, and compares the resulting trajectory with a classical opinion dynamics model (DeGroot, Friedkin-Johnsen) run on the same network. The research question behind it: for which parameters (temperature, the LLM itself, prompt design) does the LLM dynamics reproduce a given formal model
 
-The main goal of the project is to build an experimental stand for comparing formal opinion dynamics models with LLM-based social simulations, while keeping prompts, configurations, model responses, numeric scores, and experiment logs reproducible
-
-## Current status
-
-The project is in active development. The current version contains the basic building blocks for:
-* storing agent and neighbor states
-* building prompts for participant agents and judge agent
-* running a DeGroot baseline model
-* converting textual opinions into numeric scores
-* logging prompts, responses, scores, and experiment metadata
-
-The next development stage is to connect these components into a complete experiment runner
+> **Note.** External LLM APIs are not fully deterministic even with fixed temperatures and seeds. Instead of claiming determinism, every run records its parameters, seed, exact prompts and raw responses, and experiments can be repeated over several independent runs
 
 ## Features
-The framework is highly customizable and bridges classical mathematical sociology with modern LLM reasoning. Here is what the framework supports:
-* **Multi-Agent Simulation**: Initialize agents with initial beliefs, and system prompts to represent diverse demographic groups
-  * **LLM-based agents**: each participant is represented as an agent with an initial opinion, current textual opinion, and numeric opinion score
-  * **Social influence through neighbors**: each agent receives opinions of neighboring agents together with influence weights
-  * **Judge agent**: a separate evaluator converts textual opinions into numeric agreement scores in the range from `0.0` to `1.0`  
-* **Classical Opinion Models Integration**:
-  * **DeGroot Model Dynamics**: Simulates continuous opinion updating where agents adjust their views based on the weighted influence of their network neighbors
-* **Prompt configuration**: participant and judge prompts are stored in a YAML configuration file
-* **Track Simulation Status**: 
-  * Real-time logging of agent conversations and internal reasoning processes
-  * Dynamic tracking of opinion scores on a continuous scale
-  * Automatic detection of simulation end-states (e.g., global consensus)
-  * Other metadata that is saved into CSV logs
-* **Reproducibility-oriented design**:
-  * fixed experiment configurations
-  * explicit prompt templates
-  * separate logging of participant and judge responses
-  * support for multiple independent runs
-  * planned storage of random seeds, model names, temperatures, and network parameters
- 
-### Roadmap / Planned Actions
-* **Opinion trajectory plots**:
-* **Comparison between DeGroot and LLM-agent trajectories**:
-* **Aggregation over repeated runs**: 
-* **Validation metrics for LLM-based simulations**:
-* **Local LLM Support**: Implementation of a wrapper for local inference (vLLM, Ollama) to reduce API costs, ensure privacy, and improve execution speed
-* **Dynamic Networks**: Allowing agents to autonomously follow/unfollow others based on opinion similarity or interaction history
-* **Interactive Dashboard**: A GUI for real-time visualization of the network graph and opinion trajectories
 
-## Method
+### Simulation
+* Participant agents update their opinions in text, reading their neighbors' opinions together with the influence weights from a row-stochastic matrix `W` (`W[i][i]` is the agent's self-trust)
+* A separate judge model scores every opinion from `0.0` (disagrees with the thesis) to `1.0` (agrees). Anything other than a bare number is an error - failed calls are never replaced with a neutral score
+* Synchronous steps, like `x(t + 1) = W x(t)`: the whole network is updated only after every agent has answered, so nobody sees a half-updated state
+* Participant and judge are configured independently: different providers, models and temperatures
 
-The project separates the simulation into two levels:
+### Mathematical models
+* **DeGroot** - `x(t + 1) = W x(t)`, stops at consensus (? $\leqslant$ eps)
+* **Friedkin-Johnsen** - `x(t + 1) = Λ W x(t) + (I - Λ) x(0)`, stops at stationarity (? $\leqslant$ eps)
+  * LLM agents are also reminded of their initial opinion and how strongly they are anchored to it
+* The LLM simulation stops on the same criterion as the chosen model, and the model starts from the judge's step-0 scores
+* New models are added by subclassing `MathModel` and registering it in `math_models/factory.py`
 
-1. **Textual opinion update**
+### Results
+* MAE and RMSE between the LLM and model trajectories, spread, variance, convergence steps
+* A plot of both trajectories
+* Each run in its own directory: metadata, config snapshot, CSV log of every LLM call, trajectories, metrics. A failed run does not stop the others, and `summary.json` aggregates all runs
 
-   A participant agent receives:
-   * the main thesis
-   * its current opinion
-   * its initial stance description
-   * opinions of neighboring agents
-   * influence weights of the neighbors
+## Project architecture
 
-   The agent then produces an updated textual opinion.
+* **`agents`** - the LLM side of the simulation:
+  * `agent_state.py` - agent, neighbors, participant result and judge result data classes
+  * `agent_network.py` - agents plus the weight matrix: neighbor lookup and synchronous update
+  * `llm_agents.py` - participant agent and judge agent with strict score parsing
+  * `llm_client.py` - chat-completions client with retries, provider registry, credentials from the environment
+* **`math_models`** - classical models without any LLM:
+  * `common.py` - `MathModel` base class, weight validation, consensus and stationarity checks
+  * `degroot.py`, `friedkin_johnsen.py` - the built-in models, each runnable as a standalone demo
+  * `factory.py` - model registry used by the experiment config
+* **`simulations`** - `simulation_runner.py` runs the synchronous LLM simulation, `result_comparator.py`
+  compares it with the model and aggregates runs
+* **`config`** - experiment YAML loading and validation (`config_loader.py`), prompt templates
+  (`agent_prompt_config.yaml`) and their filling (`agent_prompt_builder.py`), example experiments
+* **`utils`** - `.env` loading, CSV logger, plotting, saving results
+* **`experiments/experiment_runner.py`** - CLI entry point: LLM runs, model baseline, comparison, saving
 
-2. **Numeric opinion scoring**
+## Installation and running
 
-   A judge agent receives:
-   * the thesis
-   * the participant's textual opinion
+Dependencies (numpy, PyYAML, matplotlib) are listed in `requirements.txt`:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+```
 
-   It returns a numeric score from `0.0` to `1.0`, where:
-   * `0.0` means complete disagreement with the thesis
-   * `0.5` means neutral, mixed, unclear, or balanced position
-   * `1.0` means complete agreement with the thesis
+Copy `.env.example` to `.env` and fill in the credentials for the providers used in the experiment
+(`openai`, `openai_compatible`, `ollama`, `vllm`) and, optionally, `EXPERIMENT_CONFIG` - the experiment
+to run by default. Tokens stay in `.env` only and are never saved to logs or results
 
-This allows the project to compare natural-language opinion changes with formal numeric trajectories from mathematical models
+The experiment itself (thesis, agents, weights, LLMs and their temperatures, math model, number of runs) is
+described in a YAML file - see `config/example_experiment_config_degroot.yaml` and
+`config/example_experiment_config_fj.yaml`
 
-## Project Structure
+Running from the repo root:
+```bash
+python -m experiments.experiment_runner                     # experiment from EXPERIMENT_CONFIG
+python -m experiments.experiment_runner --config <path.yaml> # or an explicit one
+```
 
-The codebase is divided into modules for ease of maintenance and clear separation of tasks:
+Results are saved to `results/<experiment_name>_<timestamp>/run_NNN/`
 
-* **`agents/agent_state.py`** - data structures for participant states, neighbor states, participant results, and judge results
-* **`agents/llm_agents.py`** - abstract LLM agent interface, participant agent logic, and judge agent logic
-* **`math_models/degroot.py`** - DeGroot opinion dynamics baseline, weight matrix validation, consensus detection, and trajectory storage
-* **`prompts/config.yaml`** - YAML configuration file with prompt templates for participant and judge agents
-* **`prompts/prompt_builder.py`** - prompt construction utilities for inserting thesis, current opinion, neighbor opinions, and influence weights
-* **`utils/logger.py`** - CSV logger for experiment events, prompts, responses, judge outputs, and scores
-
-## Planned architecture
-
-A complete simulation step will follow this pipeline:
-
-1. Load experiment configuration
-2. Build or load a social network
-3. Initialize agents with textual opinions and numeric scores
-4. For each simulation step:
-   * collect neighbor states for each agent
-   * build participant prompts
-   * query participant LLM agents
-   * send updated opinions to the judge agent
-   * parse numeric opinion scores
-   * update agent states
-   * log all prompts, responses, and scores
-5. Save trajectories and final results
-6. Compare LLM-agent dynamics with baseline mathematical models
-7. Generate plots and summary tables
+The mathematical models also run on their own, without any API:
+```bash
+python -m math_models.degroot
+python -m math_models.friedkin_johnsen
+```
 
 ## Requirements
 
-To run the project you need:
+* Python 3.11+
+* Access to an OpenAI-compatible chat-completions API or a local server (Ollama, vLLM, llama.cpp, LM Studio)
 
-### Running experiments
+## Licence
 
-- Python 3.11 or newer
-- Access to at least one LLM API provider
-- API keys configured through environment variables or a local configuration file
-- Installed Python dependencies
+LLM-opinion-dynamics is distributed under the MIT licence - see `LICENCE`
 
-Planned dependencies:
+## Author
 
-```bash
-numpy
-pyyaml
-pandas
-matplotlib
-networkx
+Vladislav Ogai ([ovladisluvv](https://github.com/ovladisluvv)), 2026
