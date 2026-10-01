@@ -5,7 +5,7 @@ from pathlib import Path
 
 class AgentPromptBuilder():
     """Utility class to build prompts for participant and judge agents based on a YAML configuration file"""
-    def __init__(self, config_path: str | Path = "config/prompt_config.yaml"):
+    def __init__(self, config_path: str | Path = "config/agent_prompt_config.yaml"):
         self.config_path = Path(config_path)
 
         with self.config_path.open("r", encoding="utf-8") as file:
