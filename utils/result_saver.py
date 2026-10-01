@@ -3,10 +3,13 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 import numpy as np
 
 from math_models import TrajectoryResult
-from simulations import SimulationResult
+
+if TYPE_CHECKING:
+    from simulations import SimulationResult
 
 
 def prompt_config_hash(path: str | Path) -> str:
@@ -47,7 +50,7 @@ def save_score_trajectory_csv(path: str | Path, trajectory: list[list[float]], a
             writer.writerow([step] + [f"{score:.6f}" for score in scores])
 
 
-def save_llm_trajectories(run_dir: Path, llm_result: SimulationResult) -> None:
+def save_llm_trajectories(run_dir: Path, llm_result: "SimulationResult") -> None:
     save_score_trajectory_csv(
         run_dir / "llm_score_trajectory.csv",
         llm_result.score_trajectory,
