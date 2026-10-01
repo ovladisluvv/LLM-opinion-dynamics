@@ -1,22 +1,26 @@
 import re
+from typing import TYPE_CHECKING
 
-from config import AgentPromptBuilder
 from agents.agent_state import ParticipantResult, JudgeResult, NeighborState
 from agents.llm_client import GenerationParams, LLMClient
 
 
+if TYPE_CHECKING:
+    from config import AgentPromptBuilder
+
+
 class BaseAgent:
-    """Base class for LLM agents used in the simulation. Delegates API calls to an injected LLM client"""
+    """Base class for LLM agents used in the simulation. Delegates prompt building and API calls to an injected prompt builder and LLM client"""
     def __init__(
         self,
         model_name: str,
         params: GenerationParams,
-        agent_prompt_builder: AgentPromptBuilder | None = None,
+        agent_prompt_builder: "AgentPromptBuilder",
         client: LLMClient | None = None
     ):
         self.model_name = model_name
         self.params = params
-        self.agent_prompt_builder = agent_prompt_builder or AgentPromptBuilder()
+        self.agent_prompt_builder = agent_prompt_builder
         self.client = client
 
     @property
@@ -37,8 +41,8 @@ class ParticipantAgent(BaseAgent):
         self,
         agent_id: int,
         model_name: str,
+        agent_prompt_builder: "AgentPromptBuilder",
         params: GenerationParams | None = None,
-        agent_prompt_builder: AgentPromptBuilder | None = None,
         client: LLMClient | None = None
     ):
         super().__init__(model_name, params or GenerationParams(temperature=0.2), agent_prompt_builder, client)
@@ -76,8 +80,8 @@ class JudgeAgent(BaseAgent):
     def __init__(
         self,
         model_name: str,
+        agent_prompt_builder: "AgentPromptBuilder",
         params: GenerationParams | None = None,
-        agent_prompt_builder: AgentPromptBuilder | None = None,
         client: LLMClient | None = None
     ):
         super().__init__(model_name, params or GenerationParams(temperature=0.0), agent_prompt_builder, client)
