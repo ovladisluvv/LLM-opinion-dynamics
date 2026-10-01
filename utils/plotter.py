@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 import numpy as np
 
 import matplotlib
@@ -7,7 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 from math_models import TrajectoryResult
-from simulations import SimulationResult
+
+
+if TYPE_CHECKING:
+    from simulations import SimulationResult
 
 
 AGENT_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
@@ -25,7 +29,7 @@ def model_label(model_name: str) -> str:
 
 
 def plot_opinion_trajectories(
-    llm_result: SimulationResult,
+    llm_result: "SimulationResult",
     math_result: TrajectoryResult,
     model_name: str,
     experiment_id: str,
