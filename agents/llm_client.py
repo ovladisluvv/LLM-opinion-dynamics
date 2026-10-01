@@ -12,23 +12,30 @@ class LLMClientError(Exception):
     pass
 
 
+def is_number(value) -> bool:
+    """True for int and float values; bool is rejected even though it is an int subclass"""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 class GenerationParams:
     """Sampling parameters of one LLM call. Kept separate from the client so they can be swept per experiment"""
     def __init__(self, temperature: float, max_tokens: int | None = None, seed: int | None = None, top_p: float | None = None):
+        if not is_number(temperature):
+            raise ValueError(f"temperature has to be a number. Got: {temperature!r}")
+
+        if temperature < 0:
+            raise ValueError(f"temperature has to be non-negative. Got: {temperature}")
+
+        if max_tokens is not None and (not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens <= 0):
+            raise ValueError(f"max_tokens has to be a positive integer when set. Got: {max_tokens!r}")
+
+        if top_p is not None and (not is_number(top_p) or not 0.0 < top_p <= 1.0):
+            raise ValueError(f"top_p has to be a number in (0, 1] when set. Got: {top_p!r}")
+
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.seed = seed
         self.top_p = top_p
-
-    def __post_init__(self):
-        if self.temperature < 0:
-            raise ValueError("temperature has to be non-negative")
-
-        if self.max_tokens is not None and self.max_tokens <= 0:
-            raise ValueError("max_tokens has to be positive when set")
-
-        if self.top_p is not None and not 0.0 < self.top_p <= 1.0:
-            raise ValueError("top_p has to be in (0, 1] when set")
 
 
 class ProviderSpec:
@@ -138,6 +145,9 @@ class OpenAICompatibleClient(LLMClient):
     """
     def build_request(self, prompt: str, params: GenerationParams) -> tuple[str, dict[str, str], dict]:
         """Return the URL, headers and JSON body of one chat completion request"""
+        if self.settings.base_url is None:
+            raise LLMClientError("A base URL is required for the LLM provider")
+
         url = self.settings.base_url.rstrip("/") + "/chat/completions"
 
         headers = {"Content-Type": "application/json"}
