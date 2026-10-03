@@ -15,8 +15,8 @@ textual opinions into numeric scores with a separate judge model, and compares t
 * Participant and judge are configured independently: different providers, models and temperatures
 
 ### Mathematical models
-* **DeGroot** - `x(t + 1) = W x(t)`, stops at consensus (? $\leqslant$ eps)
-* **Friedkin-Johnsen** - `x(t + 1) = Λ W x(t) + (I - Λ) x(0)`, stops at stationarity (? $\leqslant$ eps)
+* **DeGroot** - `x(t + 1) = W x(t)`, stops at consensus ($\max_i x_i(t) - \min_i x_i(t) \leqslant \varepsilon$)
+* **Friedkin-Johnsen** - `x(t + 1) = Λ W x(t) + (I - Λ) x(0)`, stops at stationarity ($\max_i |x_i(t + 1) - x_i(t)| \leqslant \varepsilon$)
   * LLM agents are also reminded of their initial opinion and how strongly they are anchored to it
 * The LLM simulation stops on the same criterion as the chosen model, and the model starts from the judge's step-0 scores
 * New models are added by subclassing `MathModel` and registering it in `math_models/factory.py`
@@ -37,12 +37,22 @@ textual opinions into numeric scores with a separate judge model, and compares t
   * `common.py` - `MathModel` base class, weight validation, consensus and stationarity checks
   * `degroot.py`, `friedkin_johnsen.py` - the built-in models, each runnable as a standalone demo
   * `factory.py` - model registry used by the experiment config
-* **`simulations`** - `simulation_runner.py` runs the synchronous LLM simulation, `result_comparator.py`
-  compares it with the model and aggregates runs
-* **`config`** - experiment YAML loading and validation (`config_loader.py`), prompt templates
-  (`agent_prompt_config.yaml`) and their filling (`agent_prompt_builder.py`), example experiments
-* **`utils`** - `.env` loading, CSV logger, plotting, saving results
-* **`experiments/experiment_runner.py`** - CLI entry point: LLM runs, model baseline, comparison, saving
+* **`simulations`** - the LLM simulation and its comparison with the model:
+  * `simulation_runner.py` - scores initial opinions missing a score with the judge, runs synchronous steps and stops on the math model's criterion
+  * `simulation_state.py` - judge score and text trajectories of one run with its convergence info
+  * `result_comparator.py` - MAE, RMSE, spread and variance over the common prefix of both trajectories, mean and std over several runs
+* **`config`** - experiment and prompt configuration:
+  * `config_loader.py` - loads and validates the experiment YAML: agents, weights, LLM roles, math model and its parameters. Rejects keys that look like tokens
+  * `agent_prompt_config.yaml` - participant and judge prompt templates and model-specific blocks
+  * `agent_prompt_builder.py` - fills the templates with the thesis, opinions, neighbors and the model block
+  * `example_experiment_config_degroot.yaml`, `example_experiment_config_fj.yaml` - example experiments
+* **`utils`** - supporting code:
+  * `env_loader.py` - loads `.env` into the environment without overriding already set variables
+  * `logger.py` - CSV log with one row per LLM call: prompt, response, judge output, score, latency
+  * `plotter.py` - plot of the LLM (solid) and model (dashed) trajectories
+  * `result_saver.py` - run directories, trajectories, metadata, config snapshot and prompt config hash
+* **`experiments/experiment_runner.py`** - experiment pipeline: LLM runs, model baseline, comparison, saving
+* **`main.py`** - command-line entry point: resolves the experiment config from `--config` or `EXPERIMENT_CONFIG` and runs it
 
 ## Installation and running
 
@@ -63,8 +73,9 @@ described in a YAML file - see `config/example_experiment_config_degroot.yaml` a
 
 Running from the repo root:
 ```bash
-python -m experiments.experiment_runner                     # experiment from EXPERIMENT_CONFIG
-python -m experiments.experiment_runner --config <path.yaml> # or an explicit one
+python main.py                      # experiment from EXPERIMENT_CONFIG
+python main.py --config <path.yaml> # or an explicit one
+python main.py --env <path.env>     # a different .env file
 ```
 
 Results are saved to `results/<experiment_name>_<timestamp>/run_NNN/`
