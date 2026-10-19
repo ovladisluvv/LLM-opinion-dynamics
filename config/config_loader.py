@@ -194,16 +194,36 @@ def find_secret_keys(data, path: str = "") -> list[str]:
     return found
 
 
+def validate_config_fields(data: dict, allowed: set[str], required: set[str], section: str) -> None:
+    """Reject misspelled fields and report missing required values"""
+    for field in data:
+        if field not in allowed:
+            raise ValueError(f"Unknown {section} field: {field!r}")
+    for field in required:
+        if field not in data:
+            raise ValueError(f"Missing {section} field: {field!r}")
+
+
 def parse_llm_role(raw_llm: dict, role: str, default_temperature: float) -> LLMRoleConfig:
     raw_role = raw_llm.get(role)
 
     if not isinstance(raw_role, dict):
         raise ValueError(f'Experiment config has to contain an "llm.{role}" mapping with at least a "model" key')
 
-    raw_role = {"temperature": default_temperature, **raw_role}
+    validate_config_fields(
+        raw_role,
+        allowed={"model", "provider", "temperature", "max_tokens"},
+        required={"model"},
+        section=f"llm.{role}",
+    )
 
     try:
-        return LLMRoleConfig(**raw_role)
+        return LLMRoleConfig(
+            model=raw_role["model"],
+            provider=raw_role.get("provider", DEFAULT_PROVIDER),
+            temperature=raw_role.get("temperature", default_temperature),
+            max_tokens=raw_role.get("max_tokens"),
+        )
     except TypeError as error:
         raise ValueError(f"Invalid llm.{role} field: {error}")
 
@@ -261,8 +281,19 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
         if not isinstance(raw_agent, dict):
             raise ValueError(f"Each agent entry has to be a mapping. Got: {raw_agent!r}")
 
+        validate_config_fields(
+            raw_agent,
+            allowed={"agent_id", "initial_opinion_text", "initial_opinion_score", "persona"},
+            required={"agent_id", "initial_opinion_text"},
+            section="agent",
+        )
         try:
-            agents.append(AgentConfig(**raw_agent))
+            agents.append(AgentConfig(
+                agent_id=raw_agent["agent_id"],
+                initial_opinion_text=raw_agent["initial_opinion_text"],
+                initial_opinion_score=raw_agent.get("initial_opinion_score"),
+                persona=raw_agent.get("persona"),
+            ))
         except TypeError as error:
             raise ValueError(f"Invalid agent field: {error}")
 
@@ -279,7 +310,35 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
 
     data.update(parse_math_model(data.pop("math_model", None)))
 
+    validate_config_fields(
+        data,
+        allowed={
+            "thesis", "weights", "math_model_name", "math_model_params", "math_model_epsilon",
+            "max_steps", "convergence_epsilon", "random_seed", "num_runs", "request_timeout",
+            "max_retries", "retry_delay", "results_dir", "experiment_name",
+        },
+        required={"thesis", "weights"},
+        section="experiment",
+    )
     try:
-        return ExperimentConfig(agents=agents, participant_llm=participant_llm, judge_llm=judge_llm, **data)
+        return ExperimentConfig(
+            thesis=data["thesis"],
+            agents=agents,
+            weights=data["weights"],
+            participant_llm=participant_llm,
+            judge_llm=judge_llm,
+            math_model_name=data.get("math_model_name", "degroot"),
+            math_model_params=data.get("math_model_params"),
+            math_model_epsilon=data.get("math_model_epsilon"),
+            max_steps=data.get("max_steps", 10),
+            convergence_epsilon=data.get("convergence_epsilon", 0.03),
+            random_seed=data.get("random_seed", 0),
+            num_runs=data.get("num_runs", 1),
+            request_timeout=data.get("request_timeout", 60.0),
+            max_retries=data.get("max_retries", 2),
+            retry_delay=data.get("retry_delay", 1.0),
+            results_dir=data.get("results_dir", "results"),
+            experiment_name=data.get("experiment_name", "experiment"),
+        )
     except TypeError as error:
         raise ValueError(f"Invalid experiment config field: {error}")
