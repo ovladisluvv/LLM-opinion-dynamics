@@ -1,6 +1,6 @@
 import numpy as np
 
-from math_models.common import MathModel, TrajectoryResult, has_consensus, validate_opinions, validate_weights
+from math_models.common import MathModel, has_consensus
 
 
 class DegrootModel(MathModel):
@@ -18,16 +18,6 @@ class DegrootModel(MathModel):
         return has_consensus(current, eps)
 
 
-def degroot_step(weights: np.ndarray, opinions: np.ndarray) -> np.ndarray:
-    """Perform one DeGroot update step x(t + 1) = W @ x(t)"""
-    return weights @ opinions
-
-
-def simulate_degroot(weights: np.ndarray, opinions: np.ndarray, max_steps: int, eps: float = 1e-6) -> TrajectoryResult:
-    """Simulate the DeGroot opinion dynamics model"""
-    return DegrootModel(weights).simulate(opinions, max_steps, eps)
-
-
 if __name__ == "__main__":
     W = np.array([
         [0.5, 0.4, 0.0, 0.1],
@@ -39,7 +29,7 @@ if __name__ == "__main__":
     x0 = np.array([1.0, 0.5, 0.0, 0.2], dtype=float)
     T = 100
 
-    result = simulate_degroot(W, x0, T, eps=1e-6)
+    result = DegrootModel(W).simulate(x0, T, eps=1e-6)
 
     result.print_trajectory()
     result.print_results()

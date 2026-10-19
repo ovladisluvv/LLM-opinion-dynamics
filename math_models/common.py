@@ -107,11 +107,11 @@ class MathModel(ABC):
 
     @abstractmethod
     def step(self, opinions: np.ndarray, initial_opinions: np.ndarray) -> np.ndarray:
-        """Return the opinions after one update step"""
+        """Return one update; initial_opinions anchors FJ and is ignored by DeGroot"""
 
     @abstractmethod
     def check_stop(self, previous: np.ndarray | None, current: np.ndarray, eps: float) -> bool:
-        """Stopping criterion. `previous` is None when checking the initial state"""
+        """Check stopping; previous is None initially and is ignored by consensus rules"""
 
     def participant_prompt_fields(self, agent_index: int, agent) -> dict[str, str]:
         """Model-specific placeholders for the participant prompt block. Empty by default"""

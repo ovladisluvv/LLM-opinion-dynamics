@@ -1,6 +1,6 @@
 import numpy as np
 
-from math_models.common import MathModel, TrajectoryResult, has_converged
+from math_models.common import MathModel, has_converged
 
 
 def validate_susceptibility(weights: np.ndarray, susceptibility: np.ndarray) -> None:
@@ -58,28 +58,6 @@ class FriedkinJohnsenModel(MathModel):
         return {"susceptibility": self.susceptibility.tolist()}
 
 
-def friedkin_johnsen_step(
-    weights: np.ndarray,
-    opinions: np.ndarray,
-    initial_opinions: np.ndarray,
-    susceptibility: np.ndarray,
-) -> np.ndarray:
-    """Perform one Friedkin-Johnsen update step x(t + 1) = Λ @ W @ x(t) + (I - Λ) @ x(0)"""
-    social_influence = weights @ opinions
-    return susceptibility * social_influence + (1.0 - susceptibility) * initial_opinions
-
-
-def simulate_friedkin_johnsen(
-    weights: np.ndarray,
-    opinions: np.ndarray,
-    susceptibility: np.ndarray,
-    max_steps: int,
-    eps: float = 1e-6,
-) -> TrajectoryResult:
-    """Simulate the Friedkin-Johnsen opinion dynamics model"""
-    return FriedkinJohnsenModel(weights, susceptibility=susceptibility).simulate(opinions, max_steps, eps)
-
-
 if __name__ == "__main__":
     W = np.array([
         [0.5, 0.4, 0.0, 0.1],
@@ -92,7 +70,7 @@ if __name__ == "__main__":
     susceptibility = np.array([0.8, 0.6, 0.9, 0.7], dtype=float)
     T = 100
 
-    result = simulate_friedkin_johnsen(W, x0, susceptibility, T, eps=1e-6)
+    result = FriedkinJohnsenModel(W, susceptibility).simulate(x0, T, eps=1e-6)
 
     result.print_trajectory()
     result.print_results()
