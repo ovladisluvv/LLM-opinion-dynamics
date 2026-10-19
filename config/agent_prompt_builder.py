@@ -37,7 +37,7 @@ class AgentPromptBuilder():
             return ""
 
         try:
-            return template.format(**model_fields).rstrip()
+            return template.format_map(model_fields).rstrip()
         except KeyError as error:
             raise ValueError(
                 f"Model block for {model_name!r} needs placeholder {error.args[0]!r}, "

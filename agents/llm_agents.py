@@ -67,12 +67,10 @@ class ParticipantAgent(BaseAgent):
             model_fields=model_fields,
         )
 
-        result = ParticipantResult(
+        return ParticipantResult(
             prompt=prompt,
             response=self.generate_response(prompt)
         )
-
-        return result
 
 
 class JudgeAgent(BaseAgent):
@@ -95,15 +93,13 @@ class JudgeAgent(BaseAgent):
 
         raw_response = self.generate_response(prompt)
 
-        result = JudgeResult(
+        return JudgeResult(
             prompt=prompt,
             raw_response=raw_response,
             opinion_score=self.parse_response(raw_response)
         )
 
-        return result
-
-    def parse_response(self, raw_response: str, eps: float = 1e-7) -> float:
+    def parse_response(self, raw_response: str) -> float:
         """Parse a LLM-judge raw text response to a float and validate it's in the range [0.0, 1.0]"""
         raw_response = raw_response.strip()
 
@@ -113,9 +109,4 @@ class JudgeAgent(BaseAgent):
         if not re.fullmatch(r"0(\.\d+)?|1(\.0+)?", raw_response):
             raise ValueError(f"Judge failed to return a valid score. Raw response: {raw_response}")
 
-        score = float(raw_response)
-
-        if score < -eps or score - 1.0 > eps:
-            raise ValueError(f"Judge returned a score out of bounds [0.0, 1.0]. Raw response: {raw_response}")
-
-        return score
+        return float(raw_response)
