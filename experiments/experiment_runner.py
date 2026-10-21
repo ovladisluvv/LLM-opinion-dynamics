@@ -24,6 +24,7 @@ from simulations import (
 )
 from utils import (
     Logger,
+    create_experiment_dir,
     create_run_dir,
     load_env_file,
     plot_opinion_trajectories,
@@ -104,11 +105,6 @@ def build_agents(
     return participant_agents, judge_agent
 
 
-def role_metadata(role: LLMRoleConfig, run_seed: int) -> dict:
-    """Collect metadata for a role's LLM client, excluding any sensitive tokens"""
-    return {**role.to_dict(), "seed": run_seed}
-
-
 def build_metadata(
     config: ExperimentConfig,
     experiment_id: str,
@@ -120,6 +116,11 @@ def build_metadata(
     math_result: TrajectoryResult
 ) -> dict:
     """Collect run metadata for reproducibility. Tokens are never included"""
+    participant_metadata = config.participant_llm.to_dict()
+    participant_metadata["seed"] = run_seed
+    judge_metadata = config.judge_llm.to_dict()
+    judge_metadata["seed"] = run_seed
+
     return {
         "experiment_id": experiment_id,
         "run_id": run_id,
@@ -128,8 +129,8 @@ def build_metadata(
         "thesis": config.thesis,
         "agent_ids": [agent_config.agent_id for agent_config in config.agents],
         "llm": {
-            "participant": role_metadata(config.participant_llm, run_seed),
-            "judge": role_metadata(config.judge_llm, run_seed),
+            "participant": participant_metadata,
+            "judge": judge_metadata,
         },
         "math_model": math_model.describe(),
         "request_timeout": config.request_timeout,
@@ -237,7 +238,8 @@ def run_experiment(config_path: str | Path, env_path: str | Path = ".env") -> Ex
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     experiment_id = f"{config.experiment_name}_{timestamp}"
-    experiment_dir = Path(config.results_dir) / experiment_id
+    experiment_dir = create_experiment_dir(config.results_dir, experiment_id)
+    experiment_id = str(Path(experiment_id).with_name(experiment_dir.name))
 
     print(f"Experiment {experiment_id}: {config.num_runs} run(s), {len(config.agents)} agents, max {config.max_steps} steps, math model: {config.math_model_name}")
     print(f"Participant model: {config.participant_llm.provider}/{config.participant_llm.model}, judge model: {config.judge_llm.provider}/{config.judge_llm.model}")

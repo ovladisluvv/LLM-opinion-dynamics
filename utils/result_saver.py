@@ -17,6 +17,22 @@ def prompt_config_hash(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def create_experiment_dir(results_dir: str | Path, experiment_id: str) -> Path:
+    """Reserve a new experiment directory, adding a suffix when the name is taken."""
+    results_dir = Path(results_dir)
+    experiment_dir = results_dir / experiment_id
+    experiment_dir.parent.mkdir(parents=True, exist_ok=True)
+    suffix = 0
+
+    while True:
+        try:
+            experiment_dir.mkdir()
+            return experiment_dir
+        except FileExistsError:
+            suffix += 1
+            experiment_dir = results_dir / f"{experiment_id}_{suffix:03d}"
+
+
 def create_run_dir(results_dir: str | Path, experiment_id: str, run_index: int) -> Path:
     """Create the directory for one run without overwriting previous results"""
     run_dir = Path(results_dir) / experiment_id / f"run_{run_index:03d}"
